@@ -80,8 +80,7 @@ function renderApp() {
 
       <main class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">SCAN ONCE · SOLVE STEP BY STEP</p>
-          <h1>转一圈，<br /><span>魔方给答案。</span></h1>
+          <h1>按步骤，<br /><span>魔方还原。</span></h1>
           <p class="hero-sub">把六个面依次对准取景框，每个面按一次快门。拍好后点格子修正，确认后进入下一面，再一步一步带你还原。</p>
           <div class="hero-actions">
             <button class="btn btn-primary btn-lg" id="start-camera">
@@ -94,13 +93,12 @@ function renderApp() {
               <span>查看演示</span>
             </button>
           </div>
-          <div class="single-hint">${icon('info', 'icon', 15)}<span>不要反光 · 避开强光 · 背景干净</span></div>
           <div class="hero-steps" aria-label="使用流程">
-            <span><b>01</b> 拍六面</span>
+            <span><b>01</b> 拍照</span>
             <i></i>
-            <span><b>02</b> 识别确认</span>
+            <span><b>02</b> 确认</span>
             <i></i>
-            <span><b>03</b> 跟着做</span>
+            <span><b>03</b> 按步骤还原</span>
           </div>
         </div>
 
@@ -113,11 +111,6 @@ function renderApp() {
           <div class="float-chip chip-side">${icon('camera', 'icon', 15)}<span>逐面快门</span></div>
         </div>
       </main>
-
-      <footer class="landing-foot">
-        <span>每个面按一次快门，保持整面在框内。</span>
-        <span class="foot-mark">6 SHOTS · LOCAL ONLY</span>
-      </footer>
     </section>
 
     <section class="screen scan-screen" data-screen="scan">
@@ -137,8 +130,7 @@ function renderApp() {
       <main class="scan-layout">
         <div class="scan-main">
           <div class="scan-heading">
-            <p class="eyebrow">SCAN MODE</p>
-            <h2>白上绿前，<span>按顺序拍完六个面。</span></h2>
+            <h2>白面向上，绿面朝前</h2>
           </div>
 
           <div class="camera-shell" id="camera-shell">
@@ -152,7 +144,6 @@ function renderApp() {
               <span class="corner bl"></span><span class="corner br"></span>
               <div class="scan-beam"></div>
             </div>
-            <div class="camera-badge"><span class="status-dot"></span><span>LIVE</span></div>
             <div class="scan-target" id="scan-target">
               <span class="target-dot" id="scan-target-dot"></span>
               <div><em>当前目标</em><strong id="scan-target-label">绿色面</strong><small id="scan-target-pose">白上 · 绿前</small></div>
@@ -189,7 +180,6 @@ function renderApp() {
 
           <div class="capture-panel" id="capture-panel" hidden>
             <div class="capture-copy">
-              <span class="capture-kicker">这一面已拍下</span>
               <strong id="capture-title">确认绿色面</strong>
               <small id="capture-note">点格子修正颜色，中心色固定为绿色。</small>
               <p class="capture-warning" id="capture-warning" role="status" hidden></p>
@@ -235,8 +225,6 @@ function renderApp() {
             </div>
             <p class="live-note" id="live-note">保持整面位于取景框内</p>
           </div>
-
-          <div class="privacy-line">${icon('lock', 'icon', 15)} 所有识别都在浏览器本地完成</div>
         </aside>
       </main>
     </section>
@@ -341,7 +329,6 @@ function renderApp() {
               ${icon('arrowRight', 'icon', 18)}
             </button>
           </div>
-          <p class="guide-note">方向以对应色面正对你的视角判断；白色面为上层，绿色面为前层。</p>
         </aside>
       </main>
     </section>
