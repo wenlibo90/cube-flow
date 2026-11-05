@@ -47,3 +47,9 @@ logs/
 
 # Dependencies
 /vendor/
+
+# Capacitor / Android
+android/local.properties
+android/.gradle/
+.gradle/
+*.iml

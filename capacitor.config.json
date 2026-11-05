@@ -1,0 +1,12 @@
+{
+  "appId": "com.cubscan.app",
+  "appName": "拍魔方",
+  "webDir": "dist",
+  "backgroundColor": "#08090b",
+  "android": {
+    "backgroundColor": "#08090b"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

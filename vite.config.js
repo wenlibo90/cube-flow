@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
 export default defineConfig(({ mode }) => ({
+  base: './',
   plugins: mode === 'https' ? [basicSsl()] : [],
   build: {
     chunkSizeWarningLimit: 650,
