@@ -1,0 +1,34 @@
+{
+  "name": "cube-flow",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "转一圈 Cube Flow：六面逐张快门、冻结照片校色、本地求解与 3D 分步还原指导的魔方助手。",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.5"
+  },
+  "keywords": [
+    "rubiks-cube",
+    "cube-solver",
+    "vite",
+    "threejs",
+    "computer-vision",
+    "webcam",
+    "local-first"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wenlibo90/cube-flow.git"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}
