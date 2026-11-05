@@ -350,6 +350,32 @@ export class CubeView {
     return this.applyMove(invertMove(move))
   }
 
+  resetView() {
+    if (this.destroyed) return
+    this.intro = 1
+    this.cubeRoot.scale.setScalar(1)
+    const startX = this.viewGroup.rotation.x
+    const startY = this.viewGroup.rotation.y
+
+    if (this.reduceMotion) {
+      this.viewGroup.rotation.x = 0
+      this.viewGroup.rotation.y = 0
+      return
+    }
+
+    const started = performance.now()
+    const duration = 320
+    const step = (now) => {
+      if (this.destroyed) return
+      const progress = Math.min(1, (now - started) / duration)
+      const eased = easeInOutCubic(progress)
+      this.viewGroup.rotation.x = startX * (1 - eased)
+      this.viewGroup.rotation.y = startY * (1 - eased)
+      if (progress < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  }
+
   destroy() {
     this.destroyed = true
     cancelAnimationFrame(this.animationFrame)

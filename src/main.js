@@ -41,6 +41,8 @@ const state = {
   autoTimer: null,
   solveToken: 0,
   scanToken: 0,
+  scanValidation: { status: 'idle', message: '', faces: [] },
+  scanValidationToken: 0,
   cameraLive: false,
   toastTimer: null,
 }
@@ -49,6 +51,7 @@ let scanner = null
 let solver = null
 let cubeView = null
 let cubeViewModulePromise = null
+let qrRenderToken = 0
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -213,6 +216,7 @@ function renderApp() {
             </div>
             <div class="face-progress" id="face-progress"></div>
             <p class="progress-note" id="progress-note" aria-live="polite">每个面按一次快门。</p>
+            <button class="text-btn scan-reset" id="scan-rescan-all" type="button">${icon('refresh', 'icon', 15)} 重新扫描全部</button>
           </div>
 
           <div class="panel live-card">
@@ -291,36 +295,24 @@ function renderApp() {
       </header>
 
       <main class="guide-layout">
-        <section class="cube-stage" id="cube-stage">
-          <div class="cube-stage-grid" aria-hidden="true"></div>
-          <div class="cube-glow" aria-hidden="true"></div>
-          <div class="cube-canvas" id="cube-canvas"></div>
-          <div class="cube-topline">
-            <span class="stage-label"><span class="status-dot"></span>3D 还原预览</span>
-            <span class="orientation-chip"><i class="swatch white"></i>白上<i class="swatch green"></i>绿前</span>
-          </div>
-          <div class="cube-bottomline">
-            <span>${icon('drag', 'icon', 14)} 拖动可旋转视角</span>
-            <span id="guide-counter">0 / 0</span>
-          </div>
-        </section>
-
-        <aside class="guide-side">
-          <div class="step-top">
-            <div class="step-top-row">
-              <p class="eyebrow">STEP BY STEP</p>
-              <span id="step-total">共 0 步</span>
+        <div class="guide-stage-column">
+          <section class="cube-stage" id="cube-stage">
+            <div class="cube-stage-grid" aria-hidden="true"></div>
+            <div class="cube-glow" aria-hidden="true"></div>
+            <div class="cube-canvas" id="cube-canvas"></div>
+            <div class="cube-topline">
+              <span class="stage-label"><span class="status-dot"></span>3D 还原预览</span>
+              <span class="orientation-chip"><i class="swatch white"></i>白上<i class="swatch green"></i>绿前</span>
             </div>
-            <div class="progress-track"><span id="step-progress"></span></div>
-            <div class="step-meta"><span id="step-kicker">准备开始</span><span id="step-count">0 / 0</span></div>
-          </div>
-
-          <div class="step-panel" id="step-panel"></div>
-
-          <div class="sequence-wrap" id="sequence-wrap">
-            <div class="sequence-head"><span>完整步骤</span><span>按顺序进行</span></div>
-            <div class="sequence-strip" id="sequence-strip"></div>
-          </div>
+            <div class="cube-align-hint">${icon('info', 'icon', 13)}<span>手中魔方保持白上绿前</span></div>
+            <div class="cube-bottomline">
+              <span>${icon('drag', 'icon', 14)} 拖动可旋转视角</span>
+              <span class="cube-bottom-actions">
+                <button class="cube-reset-view" id="cube-reset-view" type="button">${icon('refresh', 'icon', 13)} 还原视角</button>
+                <span id="guide-counter">0 / 0</span>
+              </span>
+            </div>
+          </section>
 
           <div class="guide-actions" id="guide-actions">
             <button class="btn btn-ghost" id="step-prev">${icon('arrowLeft', 'icon', 18)} 上一步</button>
@@ -329,9 +321,37 @@ function renderApp() {
               ${icon('arrowRight', 'icon', 18)}
             </button>
           </div>
+          <p class="guide-note">转动方向以该面正对你的视角判断。</p>
+        </div>
+
+        <aside class="guide-side">
+          <div class="step-top">
+            <span class="step-summary" id="step-summary">准备开始</span>
+            <div class="progress-track"><span id="step-progress"></span></div>
+          </div>
+
+          <div class="step-panel" id="step-panel">
+            <div class="sequence-wrap" id="sequence-wrap">
+              <div class="sequence-head"><span>完整步骤</span><span>先看步骤</span></div>
+              <div class="sequence-strip" id="sequence-strip"></div>
+            </div>
+            <div class="step-detail" id="step-detail"></div>
+          </div>
         </aside>
       </main>
     </section>
+
+    <div class="qr-modal" id="qr-modal" hidden>
+      <button class="qr-backdrop" id="qr-backdrop" aria-label="关闭二维码"></button>
+      <div class="qr-card" role="dialog" aria-modal="true" aria-labelledby="qr-title">
+        <button class="qr-close" id="qr-close" aria-label="关闭">${icon('close', 'icon', 18)}</button>
+        <p class="eyebrow">CONTINUE ON PHONE</p>
+        <h2 id="qr-title">用手机扫描</h2>
+        <p class="qr-sub">当前设备不启用相机，请用手机扫描打开当前页面。</p>
+        <div class="qr-code"><canvas id="qr-canvas"></canvas></div>
+        <p class="qr-url" id="qr-url"></p>
+      </div>
+    </div>
 
     <div class="toast-layer" id="toast-layer" aria-live="polite"></div>
   `
@@ -373,18 +393,17 @@ function cacheDom() {
     progressCount: document.querySelector('#progress-count'),
     faceProgress: document.querySelector('#face-progress'),
     progressNote: document.querySelector('#progress-note'),
+    scanRescanAll: document.querySelector('#scan-rescan-all'),
     reviewGrid: document.querySelector('#review-grid'),
     reviewAlert: document.querySelector('#review-alert'),
     colorCounts: document.querySelector('#color-counts'),
     reviewStatus: document.querySelector('#review-status'),
     reviewAction: document.querySelector('#review-action'),
     guideCounter: document.querySelector('#guide-counter'),
-    stepTotal: document.querySelector('#step-total'),
+    stepSummary: document.querySelector('#step-summary'),
     stepProgress: document.querySelector('#step-progress'),
-    stepKicker: document.querySelector('#step-kicker'),
-    stepCount: document.querySelector('#step-count'),
     stepPanel: document.querySelector('#step-panel'),
-    sequenceWrap: document.querySelector('#sequence-wrap'),
+    stepDetail: document.querySelector('#step-detail'),
     sequenceStrip: document.querySelector('#sequence-strip'),
     guideActions: document.querySelector('#guide-actions'),
     stepPrev: document.querySelector('#step-prev'),
@@ -392,16 +411,25 @@ function cacheDom() {
     stepNextLabel: document.querySelector('#step-next-label'),
     cubeStage: document.querySelector('#cube-stage'),
     cubeCanvas: document.querySelector('#cube-canvas'),
+    qrModal: document.querySelector('#qr-modal'),
+    qrCanvas: document.querySelector('#qr-canvas'),
+    qrUrl: document.querySelector('#qr-url'),
+    qrClose: document.querySelector('#qr-close'),
+    qrBackdrop: document.querySelector('#qr-backdrop'),
     toastLayer: document.querySelector('#toast-layer'),
   }
 }
 
 function bindStaticEvents() {
-  document.querySelector('#start-camera').addEventListener('click', () => beginScan({ mode: 'full' }))
+  document.querySelector('#start-camera').addEventListener('click', handleStartCamera)
   document.querySelector('#demo-button').addEventListener('click', runDemo)
+  document.querySelector('#qr-close').addEventListener('click', closeQrModal)
+  document.querySelector('#qr-backdrop').addEventListener('click', closeQrModal)
   document.querySelector('#scan-back').addEventListener('click', handleScanBack)
   document.querySelector('#retry-camera').addEventListener('click', () => beginScan({ mode: state.scanMode, rescanIndex: state.rescanIndex, resume: true }))
   document.querySelector('#shutter-btn').addEventListener('click', triggerCapture)
+  document.querySelector('#scan-rescan-all').addEventListener('click', restartScanAll)
+  document.querySelector('#face-progress').addEventListener('click', handleScanProgressClick)
   document.querySelector('#capture-confirm').addEventListener('click', confirmCapture)
   document.querySelector('#capture-retake').addEventListener('click', retakeCapture)
   document.querySelector('#capture-grid').addEventListener('click', handleCaptureGridClick)
@@ -415,8 +443,13 @@ function bindStaticEvents() {
   document.querySelector('#step-prev').addEventListener('click', handleStepPrev)
   document.querySelector('#step-next').addEventListener('click', handleStepNext)
   document.querySelector('#step-panel').addEventListener('click', handleStepPanelClick)
+  document.querySelector('#cube-reset-view').addEventListener('click', () => cubeView?.resetView())
 
   document.addEventListener('keydown', (event) => {
+    if (!state.dom.qrModal.hidden && event.key === 'Escape') {
+      closeQrModal()
+      return
+    }
     if (isScreen('scan') && event.code === 'Space' && !event.repeat) {
       if (document.activeElement?.tagName === 'BUTTON') return
       event.preventDefault()
@@ -451,6 +484,48 @@ function bindStaticEvents() {
 
 function isScreen(name) {
   return document.querySelector(`[data-screen="${name}"]`)?.classList.contains('is-active')
+}
+
+function isMobileScanDevice() {
+  return window.matchMedia?.('(pointer: coarse)').matches ?? false
+}
+
+function handleStartCamera() {
+  if (isMobileScanDevice()) {
+    beginScan({ mode: 'full' })
+    return
+  }
+  openQrModal()
+}
+
+async function openQrModal() {
+  const url = window.location.href
+  const token = ++qrRenderToken
+  state.dom.qrUrl.textContent = url
+  state.dom.qrModal.hidden = false
+  document.body.classList.add('is-qr-open')
+  state.dom.qrClose.focus({ preventScroll: true })
+
+  try {
+    const { default: QRCode } = await import('qrcode')
+    if (token !== qrRenderToken || state.dom.qrModal.hidden) return
+    await QRCode.toCanvas(state.dom.qrCanvas, url, {
+      width: 240,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#08090b', light: '#f3f4ef' },
+    })
+  } catch {
+    if (token === qrRenderToken) state.dom.qrUrl.textContent = `请用手机打开下方地址\n${url}`
+  }
+}
+
+function closeQrModal() {
+  if (state.dom.qrModal.hidden) return
+  state.dom.qrModal.hidden = true
+  document.body.classList.remove('is-qr-open')
+  qrRenderToken += 1
+  document.querySelector('#start-camera')?.focus({ preventScroll: true })
 }
 
 function setScreen(name) {
@@ -693,12 +768,19 @@ function resumeLiveAfterCapture(message) {
   if (step) handleScannerStatus(`把${step.label}整面对准取景框`, 'target')
 }
 
-function showCaptureReview({ step, grid, image, centerWarning }) {
-  state.capturePending = { step, grid, image, centerWarning }
-  state.dom.capturePhoto.src = image
+function showCaptureReview({ step, grid, image, centerWarning, adjustIndex = null }) {
+  const adjusting = adjustIndex != null
+  state.capturePending = { step, grid, image, centerWarning, adjustIndex }
+  state.dom.capturePhoto.hidden = !image
+  if (image) state.dom.capturePhoto.src = image
+  else state.dom.capturePhoto.removeAttribute('src')
   state.dom.capturePhoto.alt = `已拍下的${step.label}`
-  state.dom.captureTitle.textContent = `确认${step.label}`
-  state.dom.captureNote.textContent = `点格子修正颜色，中心色固定为${COLORS[step.color].name}。`
+  state.dom.captureTitle.textContent = adjusting ? `修改${step.label}` : `确认${step.label}`
+  state.dom.captureNote.textContent = adjusting
+    ? `点格子修正颜色，中心色固定为${COLORS[step.color].name}，修改后保存。`
+    : `点格子修正颜色，中心色固定为${COLORS[step.color].name}。`
+  state.dom.captureRetake.textContent = adjusting ? '返回' : '重拍'
+  state.dom.captureConfirm.textContent = adjusting ? '保存修改' : '确认这一面'
   state.dom.captureReview.hidden = false
   state.dom.capturePanel.hidden = false
   state.dom.shutterDock.hidden = true
@@ -707,11 +789,11 @@ function showCaptureReview({ step, grid, image, centerWarning }) {
   state.dom.scanFrame.classList.remove('is-stable')
   renderCaptureGrid()
   updateGridCells(state.dom.livePreview, grid, 'solid')
-  state.dom.liveCenter.textContent = '已拍下'
+  state.dom.liveCenter.textContent = adjusting ? '修改中' : '已拍下'
   state.dom.liveCenter.style.color = ''
   state.dom.liveCenter.dataset.center = ''
   state.dom.liveNote.textContent = '点格子修正颜色'
-  state.dom.progressNote.textContent = '这一面已拍下，点格子修正后确认。'
+  state.dom.progressNote.textContent = adjusting ? '修改这一面后保存，返回当前拍摄。' : '这一面已拍下，点格子修正后确认。'
   updateShutterState()
 }
 
@@ -792,6 +874,61 @@ function setCaptureCell(cell, key, row, col, center) {
   )
 }
 
+function openFaceAdjust(index) {
+  if (state.captureBusy || state.capturePending) return
+  const face = state.faces[index]
+  if (!face) return
+  const step = stepForFaceIndex(index)
+  if (!step) return
+  state.scanValidationToken += 1
+  state.solution = null
+  scanner.pause()
+  showCaptureReview({
+    step,
+    grid: cloneGrid(face.grid),
+    image: face.image || '',
+    centerWarning: '',
+    adjustIndex: index,
+  })
+}
+
+function handleScanProgressClick(event) {
+  const button = event.target.closest('[data-progress-index]')
+  if (!button) return
+  const index = Number(button.dataset.progressIndex)
+  if (Number.isNaN(index) || !state.faces[index]) return
+  openFaceAdjust(index)
+}
+
+function restartScanAll() {
+  clearTimeout(state.autoTimer)
+  state.autoTimer = null
+  state.scanToken += 1
+  state.solveToken += 1
+  state.captureBusy = false
+  hideCaptureReview()
+  resetScanValidation()
+  state.scanMode = 'full'
+  state.rescanIndex = null
+  state.scanStep = 0
+  state.faces = []
+  state.solution = null
+  state.reviewDirty = false
+  renderScanProgress()
+  const step = currentScanStep()
+  if (step) {
+    updateScanTarget(step)
+    setShutterMessage(step.pose)
+    handleScannerStatus(`把${step.label}整面对准取景框`, 'target')
+  }
+  if (state.cameraLive) {
+    scanner.start()
+    showToast('已重新开始扫描', null, '重新拍六个面')
+  } else {
+    beginScan({ mode: 'full' })
+  }
+}
+
 function handleCaptureGridClick(event) {
   const cell = event.target.closest('.capture-cell')
   if (!cell || !state.capturePending) return
@@ -811,7 +948,14 @@ function handleCaptureGridClick(event) {
 
 function retakeCapture() {
   if (!state.capturePending) return
-  const step = state.capturePending.step
+  const { step, adjustIndex } = state.capturePending
+  if (adjustIndex != null) {
+    hideCaptureReview()
+    renderScanProgress()
+    if (state.scanMode === 'full' && state.faces.length === 6) validateCompletedScan()
+    else if (state.cameraLive) scanner.start()
+    return
+  }
   hideCaptureReview()
   renderScanProgress()
   setShutterMessage(`重拍${step.label}，${step.pose}`)
@@ -825,10 +969,37 @@ function confirmCapture() {
     updateCaptureConfirmState()
     return
   }
-  const { step, grid } = state.capturePending
+  const { step, grid, image, adjustIndex, centerWarning } = state.capturePending
+  if (adjustIndex != null) {
+    const face = state.faces[adjustIndex]
+    if (!face) {
+      hideCaptureReview()
+      renderScanProgress()
+      return
+    }
+    face.grid = grid
+    face.center = step.color
+    face.grid[1][1] = step.color
+    face.capturedAt = Date.now()
+    face.suspect = false
+    hideCaptureReview()
+    renderScanProgress()
+    const current = currentScanStep()
+    if (current) {
+      setShutterMessage(`${COLORS[face.center].name}面已保存，继续拍${current.label}`, 'success')
+      handleScannerStatus(`把${current.label}整面对准取景框`, 'target')
+      if (state.cameraLive) scanner.start()
+      showToast(`${COLORS[face.center].name}面已保存`, face.center, `继续拍${current.label}`)
+    } else if (state.faces.length === 6) {
+      validateCompletedScan()
+    }
+    return
+  }
   const face = {
     grid,
     center: step.color,
+    image,
+    suspect: Boolean(centerWarning),
     capturedAt: Date.now(),
   }
   hideCaptureReview()
@@ -849,6 +1020,7 @@ async function beginScan({ mode = 'full', rescanIndex = null, resume = false } =
   state.solveToken += 1
   state.captureBusy = false
   state.capturePending = null
+  resetScanValidation()
   if (mode === 'full' && !resume) {
     state.faces = []
     state.scanStep = 0
@@ -969,11 +1141,7 @@ function handleCapture(face) {
     updateShutterState()
     setShutterMessage('六个面已确认，正在校验', 'success')
     showToast(`${COLORS[face.center].name}面已确认`, face.center, '6 / 6 · 正在校验')
-    setTimeout(() => {
-      if (state.scanMode === 'full' && state.faces.length === 6) {
-        openReview({ autoEnter: true, autoSolve: true })
-      }
-    }, 620)
+    validateCompletedScan()
     return
   }
 
@@ -994,6 +1162,7 @@ function flashCamera() {
 
 function renderScanProgress() {
   state.dom.progressCount.textContent = String(state.faces.length)
+  state.dom.progressNote.dataset.tone = ''
   state.dom.faceProgress.innerHTML = SCAN_STEPS.map((step, index) => {
     const face = state.faces[index]
     const target = state.scanMode === 'rescan' && state.rescanIndex === index
@@ -1007,10 +1176,10 @@ function renderScanProgress() {
       `
     }
     return `
-      <div class="progress-face is-captured ${target ? 'is-target' : ''}" title="${COLORS[face.center].name}面">
+      <button type="button" class="progress-face is-captured ${target ? 'is-target' : ''}" data-progress-index="${index}" title="查看并修改${COLORS[face.center].name}面" aria-label="查看并修改${COLORS[face.center].name}面">
         <span class="mini-face">${miniFaceMarkup(face.grid)}</span>
         <span class="mini-check">${icon('check', 'icon', 9)}</span>
-      </div>
+      </button>
     `
   }).join('')
 
@@ -1022,11 +1191,108 @@ function renderScanProgress() {
       ? `重拍第 ${state.rescanIndex + 1} 面 · ${step.pose}`
       : `${step.label} · ${step.pose}`
     setShutterMessage(step.pose)
+  } else if (state.scanMode === 'full' && state.faces.length === 6) {
+    renderScanValidation()
   } else {
-    state.dom.progressNote.textContent = state.faces.length === 6
-      ? '六个面已拍完，正在进入校验。'
-      : '按目标提示拍摄六个面。'
-    if (state.faces.length === 6) setShutterMessage('六个面已拍完，正在校验', 'success')
+    state.dom.progressNote.textContent = '按目标提示拍摄六个面。'
+  }
+}
+
+function resetScanValidation() {
+  state.scanValidationToken += 1
+  state.scanValidation = { status: 'idle', message: '', faces: [] }
+}
+
+function setScanValidation(status, message, faces = []) {
+  state.scanValidation = { status, message, faces }
+  renderScanValidation()
+}
+
+function renderScanValidation() {
+  if (state.scanMode !== 'full' || state.faces.length !== 6) return
+  const { status, message, faces } = state.scanValidation
+  const tone = status === 'error'
+    ? 'error'
+    : status === 'passed'
+      ? 'success'
+      : status === 'checking'
+        ? 'busy'
+        : 'neutral'
+  const text = message || '六个面已拍完，点有提示的面修改。'
+  state.dom.progressNote.textContent = text
+  state.dom.progressNote.dataset.tone = tone === 'neutral' ? '' : tone
+  setShutterMessage(text, tone)
+  const warned = new Set(faces || [])
+  state.dom.faceProgress.querySelectorAll('.progress-face[data-progress-index]').forEach((el) => {
+    el.classList.toggle('is-warning', warned.has(Number(el.dataset.progressIndex)))
+  })
+}
+
+function suspectFacesForCounts(counts) {
+  const over = new Set(COLOR_KEYS.filter((key) => counts[key] > 9))
+  const bad = new Set(COLOR_KEYS.filter((key) => counts[key] !== 9))
+  const warned = []
+  const overMatches = []
+  state.faces.forEach((face, index) => {
+    if (face.suspect) warned.push(index)
+    if (face.grid.flat().some((key) => over.has(key))) overMatches.push(index)
+  })
+  if (warned.length) return warned
+  if (overMatches.length) return overMatches
+  const badMatches = []
+  state.faces.forEach((face, index) => {
+    if (face.grid.flat().some((key) => bad.has(key))) badMatches.push(index)
+  })
+  return badMatches.length ? badMatches : state.faces.map((_, index) => index)
+}
+
+async function validateCompletedScan() {
+  if (state.scanMode !== 'full' || state.faces.length !== 6) return
+  const token = ++state.scanValidationToken
+  const counts = countColors(state.faces)
+  const centers = new Set(state.faces.map((face) => face.center))
+
+  if (!isCountComplete(counts)) {
+    const badKeys = COLOR_KEYS.filter((key) => counts[key] !== 9)
+    const detail = badKeys.map((key) => `${COLORS[key].label} ${counts[key]}/9`).join('，')
+    setScanValidation('error', `颜色数量不对：${detail}。点有提示的面修改。`, suspectFacesForCounts(counts))
+    return
+  }
+
+  if (centers.size !== 6) {
+    const byColor = new Map()
+    state.faces.forEach((face, index) => {
+      if (!byColor.has(face.center)) byColor.set(face.center, [])
+      byColor.get(face.center).push(index)
+    })
+    const duplicate = new Set()
+    for (const indices of byColor.values()) {
+      if (indices.length > 1) indices.forEach((index) => duplicate.add(index))
+    }
+    setScanValidation('error', '中心色重复，点有提示的面修改。', Array.from(duplicate))
+    return
+  }
+
+  setScanValidation('checking', '正在校验六面。', [])
+
+  try {
+    const result = await solver.solve(state.faces.map((face) => ({ center: face.center, grid: face.grid })))
+    if (token !== state.scanValidationToken) return
+    if (!result.ok) {
+      setScanValidation('error', '色块组合不合法，点有提示的面核对修改。', state.faces.map((_, index) => index))
+      return
+    }
+
+    state.solution = result
+    setScanValidation('passed', '六面校验通过，正在进入下一步。', [])
+    setTimeout(() => {
+      if (token !== state.scanValidationToken) return
+      if (state.scanMode !== 'full' || state.faces.length !== 6 || !state.solution?.ok) return
+      openReview({ autoEnter: true, autoSolve: false, solution: state.solution })
+    }, 750)
+  } catch {
+    if (token !== state.scanValidationToken) return
+    setScanValidation('error', '校验失败，点有提示的面核对修改。', state.faces.map((_, index) => index))
   }
 }
 
@@ -1034,11 +1300,11 @@ function miniFaceMarkup(grid) {
   return grid.flat().map((key) => `<i style="background:${COLORS[key]?.hex || '#22262c'}"></i>`).join('')
 }
 
-function openReview({ autoEnter = false, autoSolve = true } = {}) {
+function openReview({ autoEnter = false, autoSolve = true, solution = null } = {}) {
   clearTimeout(state.autoTimer)
   state.autoTimer = null
   state.reviewDirty = false
-  state.solution = null
+  state.solution = solution
   state.actionKind = 'disabled'
   state.busy = false
   state.solveToken += 1
@@ -1050,6 +1316,24 @@ function openReview({ autoEnter = false, autoSolve = true } = {}) {
     showCountError(counts)
     return
   }
+
+  if (solution?.ok) {
+    state.actionKind = 'guide'
+    updateReviewAction('开始还原')
+    renderReviewStatus('校验通过，可以开始还原。')
+    setReviewAlert(
+      'success',
+      '校验通过',
+      `已计算 ${solution.moves.length} 步还原方案。${autoEnter ? '即将自动进入还原指导。' : '点击下方按钮开始还原。'}`,
+    )
+    if (autoEnter) {
+      state.autoTimer = setTimeout(() => {
+        if (state.solution && isScreen('review')) enterGuide()
+      }, 1450)
+    }
+    return
+  }
+
   if (autoSolve) {
     validateAndSolve({ autoEnter })
   } else {
@@ -1354,9 +1638,8 @@ async function enterGuide() {
     return
   }
   state.dom.cubeStage.classList.remove('is-complete')
-  state.dom.sequenceWrap.hidden = false
   state.dom.guideActions.hidden = false
-  state.dom.stepTotal.textContent = `共 ${state.solution.moves.length} 步`
+  state.dom.stepSummary.textContent = `准备开始 / 共 ${state.solution.moves.length} 步`
   state.dom.guideCounter.textContent = `0 / ${state.solution.moves.length}`
   renderSequence()
   if (state.solution.moves.length === 0) {
@@ -1406,13 +1689,11 @@ function renderStep() {
   const info = moveDetail(move)
   const total = moves.length
   state.dom.cubeStage.classList.remove('is-complete')
-  state.dom.sequenceWrap.hidden = false
   state.dom.guideActions.hidden = false
-  state.dom.stepKicker.textContent = `现在做 · 第 ${state.stepIndex + 1} 步`
-  state.dom.stepCount.textContent = `${state.stepIndex + 1} / ${total}`
+  state.dom.stepSummary.textContent = `第 ${state.stepIndex + 1} 步 / 共 ${total} 步`
   state.dom.stepProgress.style.width = `${(state.stepIndex / total) * 100}%`
   state.dom.guideCounter.textContent = `${state.stepIndex} / ${total}`
-  state.dom.stepPanel.innerHTML = `
+  state.dom.stepDetail.innerHTML = `
     <div class="step-card">
       <div class="step-card-top">
         <span class="step-face-chip"><i style="background:${info.color.hex}"></i>${info.color.name}面</span>
@@ -1444,13 +1725,11 @@ function renderStep() {
 function renderSuccess(alreadySolved = false) {
   const moves = state.solution?.moves || []
   state.dom.cubeStage.classList.add('is-complete')
-  state.dom.stepKicker.textContent = '全部完成'
-  state.dom.stepCount.textContent = `${moves.length} / ${moves.length}`
+  state.dom.stepSummary.textContent = `全部完成 / 共 ${moves.length} 步`
   state.dom.stepProgress.style.width = '100%'
   state.dom.guideCounter.textContent = `${moves.length} / ${moves.length}`
-  state.dom.sequenceWrap.hidden = false
   state.dom.guideActions.hidden = true
-  state.dom.stepPanel.innerHTML = `
+  state.dom.stepDetail.innerHTML = `
     <div class="success-card">
       <div class="success-mark">${icon('check', 'icon', 28)}</div>
       <p class="eyebrow">CUBE SOLVED</p>
@@ -1557,6 +1836,7 @@ function goHome() {
   state.reviewDirty = false
   state.busy = false
   state.stepIndex = 0
+  resetScanValidation()
   renderScanProgress()
   setScreen('landing')
 }
