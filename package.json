@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "转一圈 Cube Flow：六面逐张快门、冻结照片校色、本地求解与 3D 分步还原指导的魔方助手。",
+  "description": "拍魔方 Cube Flow：六面逐张快门、冻结照片校色、本地求解与 3D 分步还原指导的魔方助手。",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "dev:https": "vite --mode https --host 0.0.0.0",

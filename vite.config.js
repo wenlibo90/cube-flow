@@ -5,6 +5,12 @@ export default defineConfig(({ mode }) => ({
   plugins: mode === 'https' ? [basicSsl()] : [],
   build: {
     chunkSizeWarningLimit: 650,
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        desktop: 'desktop.html',
+      },
+    },
   },
   server: {
     host: '0.0.0.0',

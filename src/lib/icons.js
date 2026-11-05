@@ -42,6 +42,9 @@ const PATHS = {
   chevronRight: `<path d="m9 5 7 7-7 7"/>`,
   restart: `<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>`,
   info: `<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>`,
+  book: `
+    <path d="M4 5c3-.6 5.6 0 8 1.8 2.4-1.8 5-2.4 8-1.8v13.2c-3-.6-5.6 0-8 1.8-2.4-1.8-5-2.4-8-1.8V5Z"/>
+    <path d="M12 6.8v13.2"/>`,
 }
 
 export function icon(name, className = 'icon', size = 20) {

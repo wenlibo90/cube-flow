@@ -1,7 +1,7 @@
-# 转一圈 · Cube Flow
+# 拍魔方 · Cube Flow
 
 <p align="center">
-  <img src="docs/landing.png" alt="转一圈首页" width="920">
+  <img src="docs/landing.png" alt="拍魔方首页" width="920">
 </p>
 
 把魔方六个面各拍一张，在冻结照片上点格子校正颜色，确认后由浏览器本地求解，再用 3D 分步指导还原。

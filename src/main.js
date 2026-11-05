@@ -34,7 +34,15 @@ const TURN_HINTS = [
   { icon: 'refresh', text: '再向后翻转 180°' },
 ]
 
-const HERO_FACELET = 'UBULURUFURURFRBRDRFUFLFRFDFDFDLDRDBDLULBLFLDLBUBRBLBDB'
+const HERO_FACELETS = [
+  'UBULURUFURURFRBRDRFUFLFRFDFDFDLDRDBDLULBLFLDLBUBRBLBDB',
+  'RFBBUBUUBRULLRRFFLFLUDFFDDRBLUUDUFBDBRLBLFDRLURDDBLFDR',
+  'URLUULRBBUFFLRRFBFUULDFBBFDLDRFDDRLLRLBULRDUDUFFBBRDDB',
+  'DLFLULBBLBURFRRFUDDDUBFDFDUDLLFDBURRBFRULRRRLUBLUBFFDB',
+  'FDBBUDBRUFRULRBFBBDULDFBBFLUUDFDDFFDUURULFDLLRLRRBLLRR',
+  'ULLDUBBRURLFFRULDUDBFFFURDBDRDLDBDUBBFRLLRFDFUFRBBULRL',
+]
+let heroFacelet = HERO_FACELETS[0]
 
 const state = {
   faces: [],
@@ -87,16 +95,17 @@ function renderApp() {
     <section class="screen landing-screen is-active" data-screen="landing">
       <header class="site-head">
         <button class="brand" data-action="home" aria-label="返回首页">
-          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-          <span class="brand-copy"><strong>转一圈</strong><em>CUBE FLOW</em></span>
+          <img class="brand-mark" src="/favicon.png" alt="" aria-hidden="true" />
+          <span class="brand-copy"><strong>CubScan</strong></span>
         </button>
-        <div class="local-badge">${icon('shield', 'icon', 15)}<span>本地识别 · 画面不上传</span></div>
+        <div class="local-badge">${icon('shield', 'icon', 15)}<span>本地识别</span></div>
       </header>
 
       <main class="hero">
         <div class="hero-copy">
-          <h1>按步骤，<br /><span>魔方还原。</span></h1>
-          <p class="hero-sub">把六个面依次对准取景框，每个面按一次快门。拍好后点格子修正，确认后进入下一面，再一步一步带你还原。</p>
+          <span class="hero-eyebrow">在线学习 · 拍照还原魔方</span>
+          <h1>拍魔方，<br /><span>轻松还原魔方。</span></h1>
+          <p class="hero-sub">身边有魔方，打开相机扫描，跟着步骤一步一步还原魔方；没有魔方，也能在线学习，用虚拟魔方看懂每一步。</p>
           <div class="hero-actions">
             <button class="btn btn-primary btn-lg" id="start-camera">
               <span>${icon('camera', 'icon', 21)}</span>
@@ -104,8 +113,8 @@ function renderApp() {
               <span class="btn-arrow">${icon('arrowRight', 'icon', 18)}</span>
             </button>
             <button class="btn btn-ghost btn-lg" id="demo-button">
-              ${icon('spark', 'icon', 18)}
-              <span>查看演示</span>
+              ${icon('book', 'icon', 18)}
+              <span>在线学习</span>
             </button>
           </div>
         </div>
@@ -114,8 +123,6 @@ function renderApp() {
           <div class="orbit orbit-one"></div>
           <div class="orbit orbit-two"></div>
           <div class="hero-cube" id="hero-cube"></div>
-          <div class="float-chip chip-top"><span class="status-dot"></span>6 面确认</div>
-          <div class="float-chip chip-side">${icon('camera', 'icon', 15)}<span>逐面快门</span></div>
         </div>
       </main>
     </section>
@@ -123,8 +130,8 @@ function renderApp() {
     <section class="screen scan-screen" data-screen="scan">
       <header class="app-head">
         <button class="brand brand-small" data-action="home" aria-label="返回首页">
-          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-          <span class="brand-copy"><strong>转一圈</strong><em>CUBE FLOW</em></span>
+          <img class="brand-mark" src="/favicon.png" alt="" aria-hidden="true" />
+          <span class="brand-copy"><strong>拍魔方</strong><em>CubScan</em></span>
         </button>
         <div class="stage-nav" aria-label="当前步骤">
           <span class="is-active" data-stage="scan"><b>01</b> 扫描</span>
@@ -165,7 +172,7 @@ function renderApp() {
               <p id="camera-error-text">请允许相机权限后再试。</p>
               <div class="error-actions">
                 <button class="btn btn-primary btn-sm" id="retry-camera">${icon('refresh', 'icon', 16)} 重试</button>
-                <button class="btn btn-ghost btn-sm" id="error-demo">查看演示</button>
+                <button class="btn btn-ghost btn-sm" id="error-demo">没魔方 · 在线学习</button>
               </div>
             </div>
             <div class="capture-review" id="capture-review" hidden>
@@ -238,8 +245,8 @@ function renderApp() {
     <section class="screen review-screen" data-screen="review">
       <header class="app-head">
         <button class="brand brand-small" data-action="home" aria-label="返回首页">
-          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-          <span class="brand-copy"><strong>转一圈</strong><em>CUBE FLOW</em></span>
+          <img class="brand-mark" src="/favicon.png" alt="" aria-hidden="true" />
+          <span class="brand-copy"><strong>拍魔方</strong><em>CubScan</em></span>
         </button>
         <div class="stage-nav" aria-label="当前步骤">
           <span class="is-done" data-stage="scan"><b>01</b> 扫描</span>
@@ -253,7 +260,7 @@ function renderApp() {
         <section class="review-main">
           <div class="review-alert" id="review-alert" role="status"></div>
           <div class="review-grid" id="review-grid"></div>
-          <p class="review-tip">${icon('info', 'icon', 15)} 点一下色块，颜色循环切换。中心块用于定位，不可修改。</p>
+          <p class="review-tip">${icon('info', 'icon', 15)} 点一下色块，可切换颜色。中心块用于定位，不可修改。</p>
         </section>
 
         <aside class="review-side">
@@ -265,7 +272,7 @@ function renderApp() {
             <div class="color-counts" id="color-counts"></div>
           </div>
 
-          <div class="review-status" id="review-status"></div>
+          <div class="panel review-status" id="review-status"></div>
 
           <button class="btn btn-primary btn-wide" id="review-action" disabled>
             <span class="btn-label">先修正色块</span>
@@ -279,15 +286,15 @@ function renderApp() {
     <section class="screen guide-screen" data-screen="guide">
       <header class="app-head">
         <button class="brand brand-small" data-action="home" aria-label="返回首页">
-          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-          <span class="brand-copy"><strong>转一圈</strong><em>CUBE FLOW</em></span>
+          <img class="brand-mark" src="/favicon.png" alt="" aria-hidden="true" />
+          <span class="brand-copy"><strong>拍魔方</strong><em>CubScan</em></span>
         </button>
         <div class="stage-nav" aria-label="当前步骤">
           <span class="is-done" data-stage="scan"><b>01</b> 扫描</span>
           <span class="is-done" data-stage="review"><b>02</b> 校验</span>
           <span class="is-active" data-stage="guide"><b>03</b> 还原</span>
         </div>
-        <button class="text-btn text-btn-quiet" data-action="home">退出</button>
+        <button class="icon-btn" data-action="home" aria-label="退出">${icon('close', 'icon', 20)}</button>
       </header>
 
       <main class="guide-layout">
@@ -1310,7 +1317,7 @@ function renderReview() {
   state.dom.reviewGrid.innerHTML = state.faces.map((face, index) => {
     const role = ROLE_BY_COLOR[face.center] || '?'
     return `
-      <article class="face-card" data-face="${index}">
+      <article class="face-card${face.image ? ' has-photo' : ''}" data-face="${index}">
         <header class="face-card-head">
           <div class="face-identity">
             <span class="face-center-dot" style="background:${COLORS[face.center]?.hex || '#555'}"></span>
@@ -1323,11 +1330,14 @@ function renderReview() {
             ${icon('camera', 'icon', 16)}
           </button>
         </header>
-        <div class="sticker-grid">
-          ${face.grid.flatMap((row, r) => row.map((key, c) => {
-            const center = r === 1 && c === 1
-            return `<button class="sticker ${center ? 'is-center' : ''}" data-face="${index}" data-row="${r}" data-col="${c}"${center ? ' disabled' : ''} style="--sticker:${COLORS[key]?.hex || '#333'}" aria-label="${center ? '中心块不可修改' : `第${r + 1}行第${c + 1}列，当前${COLORS[key]?.name || '未知'}，点击切换颜色`}"><span></span></button>`
-          })).join('')}
+        <div class="face-photo-wrap">
+          ${face.image ? `<img class="face-photo" src="${face.image}" alt="${FACE_NAMES[role] || '第 ' + (index + 1) + ' 面'}原图" loading="lazy" />` : ''}
+          <div class="sticker-grid">
+            ${face.grid.flatMap((row, r) => row.map((key, c) => {
+              const center = r === 1 && c === 1
+              return `<button class="sticker ${center ? 'is-center' : ''}" data-face="${index}" data-row="${r}" data-col="${c}"${center ? ' disabled' : ''} style="--sticker:${COLORS[key]?.hex || '#333'}" aria-label="${center ? '中心块不可修改' : `第${r + 1}行第${c + 1}列，当前${COLORS[key]?.name || '未知'}，点击切换颜色`}"><span></span></button>`
+            })).join('')}
+          </div>
         </div>
       </article>
     `
@@ -1355,10 +1365,15 @@ function renderReviewStatus(extra = '') {
   const complete = isCountComplete(counts)
   const centers = new Set(state.faces.map((face) => face.center))
   state.dom.reviewStatus.innerHTML = `
-    <div class="status-row"><span>色块采集</span><strong>${total} / 54</strong></div>
-    <div class="status-row"><span>颜色数量</span><strong class="${complete ? 'good' : 'bad'}">${complete ? '6 / 6 正确' : '需要修正'}</strong></div>
-    <div class="status-row"><span>中心色</span><strong class="${centers.size === 6 ? 'good' : 'bad'}">${centers.size} / 6 唯一</strong></div>
-    ${extra ? `<p class="status-extra">${extra}</p>` : ''}
+    <div class="panel-head">
+      <span>色块采集</span>
+      <em>${total} / 54</em>
+    </div>
+    <div class="status-rows">
+      <div class="status-row"><span>颜色数量</span><strong class="${complete ? 'good' : 'bad'}">${complete ? '6 / 6 正确' : '需要修正'}</strong></div>
+      <div class="status-row"><span>中心色</span><strong class="${centers.size === 6 ? 'good' : 'bad'}">${centers.size} / 6 唯一</strong></div>
+      ${extra ? `<p class="status-extra">${extra}</p>` : ''}
+    </div>
   `
 }
 
@@ -1418,7 +1433,7 @@ function showCountError(counts) {
   setReviewAlert(
     'error',
     '识别有问题',
-    '识别有问题，请重新扫这一面，或点色块修正',
+    '识别有问题，请重新扫描，或点色块修正',
     detail ? `数量不对：${detail}` : '',
   )
   state.actionKind = 'disabled'
@@ -1527,6 +1542,8 @@ function handleReviewAction() {
   }
 }
 
+let lastDemoFacelet = ''
+
 async function runDemo() {
   loadCubeView().catch(() => {})
   state.scanToken += 1
@@ -1539,8 +1556,14 @@ async function runDemo() {
   showToast('正在生成演示魔方', null, '稍等片刻')
 
   try {
-    const result = await solver.demo()
+    let result = await solver.demo()
+    let retries = 0
+    while (result.ok && result.facelet === lastDemoFacelet && retries < 3) {
+      result = await solver.demo()
+      retries += 1
+    }
     if (!result.ok) throw new Error('演示生成失败')
+    lastDemoFacelet = result.facelet
     state.faces = facesFromFacelet(result.facelet)
     state.reviewDirty = false
     state.solution = null
@@ -1846,10 +1869,16 @@ async function mountHeroCube() {
   if (token !== heroCubeToken || heroCubeView || !isScreen('landing')) return
   container.innerHTML = ''
   try {
-    heroCubeView = new CubeViewClass(container, HERO_FACELET)
+    heroFacelet = pickDifferent(HERO_FACELETS, heroFacelet)
+    heroCubeView = new CubeViewClass(container, heroFacelet, [], { intro: false, ambient: true })
   } catch {
     heroCubeView = null
   }
+}
+
+function pickDifferent(list, current) {
+  const others = list.filter((item) => item !== current)
+  return others[Math.floor(Math.random() * others.length)] || current
 }
 
 function unmountHeroCube() {

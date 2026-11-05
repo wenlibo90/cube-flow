@@ -105,7 +105,13 @@ export class CubeView {
     this.reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     this.pointer = null
     this.dragged = false
-    this.intro = 0
+    this.intro = options.intro === false ? 1 : 0
+    this.ambient = options.ambient === true
+    this.zoomEnabled = options.zoom === true
+    this.zoom = 1
+    this.inertia = 0
+    this.idleTime = 0
+    this.ambientTime = 0
 
     this.scene = new THREE.Scene()
     this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100)
@@ -217,6 +223,8 @@ export class CubeView {
     this.onPointerDown = (event) => {
       this.pointer = { x: event.clientX, y: event.clientY }
       this.dragged = false
+      this.inertia = 0
+      this.idleTime = 0
       el.setPointerCapture?.(event.pointerId)
       el.classList.add('is-dragging')
     }
@@ -231,6 +239,8 @@ export class CubeView {
       this.pointer = { x: event.clientX, y: event.clientY }
       this.viewGroup.rotation.y += dx * 0.007
       this.viewGroup.rotation.x = Math.max(-0.85, Math.min(0.85, this.viewGroup.rotation.x + dy * 0.006))
+      if (this.ambient) this.inertia = dx * 0.004
+      this.idleTime = 0
     }
     this.onPointerUp = () => {
       this.pointer = null
@@ -240,6 +250,14 @@ export class CubeView {
     el.addEventListener('pointermove', this.onPointerMove)
     el.addEventListener('pointerup', this.onPointerUp)
     el.addEventListener('pointercancel', this.onPointerUp)
+
+    this.onWheel = (event) => {
+      if (!this.zoomEnabled) return
+      event.preventDefault()
+      this.zoom = Math.min(1.7, Math.max(0.7, this.zoom * (event.deltaY > 0 ? 0.92 : 1.08)))
+      this.container.style.setProperty('--cube-scale', String(this.zoom))
+    }
+    el.addEventListener('wheel', this.onWheel, { passive: false })
   }
 
   resize() {
@@ -267,6 +285,25 @@ export class CubeView {
       this.cubeRoot.scale.setScalar(0.88 + eased * 0.12)
       this.viewGroup.rotation.y = -0.35 * (1 - eased)
     }
+
+    if (this.ambient && !this.reduceMotion) {
+      this.ambientTime += dt
+      if (this.pointer) {
+        this.idleTime = 0
+      } else {
+        this.idleTime += dt
+        if (Math.abs(this.inertia) > 0.0002) {
+          this.viewGroup.rotation.y += this.inertia
+          this.inertia *= 0.94
+        } else if (this.idleTime > 1.2 && !this.animating) {
+          this.viewGroup.rotation.y += dt * 0.26
+        }
+      }
+      this.cubeRoot.position.y = this.animating
+        ? 0
+        : Math.sin(this.ambientTime * 1.1) * 0.05 + 0.02
+    }
+
     this.renderer.render(this.scene, this.camera)
   }
 
@@ -389,6 +426,7 @@ export class CubeView {
     el.removeEventListener('pointermove', this.onPointerMove)
     el.removeEventListener('pointerup', this.onPointerUp)
     el.removeEventListener('pointercancel', this.onPointerUp)
+    el.removeEventListener('wheel', this.onWheel)
     this.scene.traverse((object) => {
       if (object.geometry && object.geometry !== STICKER_GEOMETRY) object.geometry.dispose?.()
       if (object.material) {

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08090b" />
+    <meta
+      name="description"
+      content="拍魔方 CubScan：用手机扫描二维码，拍下六面即可在浏览器本地完成校验并生成 3D 分步还原指导。"
+    />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>拍魔方 CubScan · 用手机扫码开始</title>
+  </head>
+  <body>
+    <main class="desktop-page">
+      <header class="desktop-head">
+        <span class="desktop-brand">
+          <img src="/favicon.png" alt="" aria-hidden="true" />
+          <span class="desktop-brand-copy"><strong>拍魔方</strong><em>CubScan</em></span>
+        </span>
+      </header>
+
+      <section class="desktop-hero">
+        <div class="desktop-copy">
+          <h1>拍魔方，<br /><span>轻松还原魔方。</span></h1>
+          <p class="desktop-lead">
+            六个面各拍一张照片，点格子校正颜色，浏览器本地校验后给出 3D 分步还原指导。
+            全部计算在手机上完成，不需要安装应用，也不上传任何照片。
+          </p>
+
+          <div class="desktop-scan">
+            <div class="desktop-qr">
+              <canvas id="desktop-qr"></canvas>
+            </div>
+            <div class="desktop-scan-copy">
+              <p class="desktop-scan-title">手机扫码，快速解析还原魔方</p>
+              <p class="desktop-scan-note">需要用手机摄像头拍摄魔方，需要在手机操作。</p>
+            </div>
+          </div>
+
+          <ul class="desktop-steps">
+            <li>
+              <b>01</b>
+              <div><h3>手机拍下六个面</h3><p>按提示依次拍摄，自动识别每一面的颜色。</p></div>
+            </li>
+            <li>
+              <b>02</b>
+              <div><h3>跟着 3D 指导还原</h3><p>逐步播放每一步转动，直到魔方复原。</p></div>
+            </li>
+          </ul>
+        </div>
+
+        <aside class="desktop-stage">
+          <div class="desktop-cube" id="desktop-cube" aria-hidden="true"></div>
+        </aside>
+      </section>
+
+      <footer class="desktop-foot">
+        <span>本地识别 · 不上传照片</span>
+        <span>拍照校色 · 3D 分步还原 · 全程免费</span>
+      </footer>
+    </main>
+    <script type="module" src="/src/desktop-main.js"></script>
+  </body>
+</html>
+</tool_result>

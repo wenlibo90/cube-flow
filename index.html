@@ -6,10 +6,18 @@
     <meta name="theme-color" content="#08090b" />
     <meta
       name="description"
-      content="转一圈 Cube Flow：六个面各拍一张，冻结照片点格子校色，浏览器本地校验并生成 3D 分步还原指导。"
+      content="拍魔方 CubScan：六个面各拍一张，冻结照片点格子校色，浏览器本地校验并生成 3D 分步还原指导。"
     />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>转一圈 · 魔方还原向导</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>拍魔方 · 魔方还原向导</title>
+    <script>
+      // 桌面端统一进入独立的落地页，交互流程只保留在手机端
+      ;(function () {
+        if (new URLSearchParams(location.search).has('mobile')) return
+        var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+        if (finePointer && window.innerWidth >= 820) location.replace('desktop.html')
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>
