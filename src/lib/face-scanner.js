@@ -33,6 +33,9 @@ export class FaceScanner {
   }
 
   async openCamera() {
+    if (!window.isSecureContext) {
+      throw new Error('当前是普通 HTTP 访问，浏览器禁止调用摄像头。请改用 https 链接，或在本机用 localhost 打开。')
+    }
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error('当前浏览器不支持相机访问，请使用系统浏览器或 Chrome / Safari 打开。')
     }

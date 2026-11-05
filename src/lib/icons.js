@@ -8,6 +8,7 @@ const PATHS = {
     <path d="m3 3 18 18"/>`,
   arrowRight: `<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>`,
   arrowLeft: `<path d="M19 12H5"/><path d="m11 18-6-6 6-6"/>`,
+  arrowUp: `<path d="M12 19V5"/><path d="m6 11 6-6 6 6"/>`,
   close: `<path d="M6 6l12 12M18 6 6 18"/>`,
   check: `<path d="m5 12 4.5 4.5L19 7"/>`,
   alert: `<path d="M10.3 3.8 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`,

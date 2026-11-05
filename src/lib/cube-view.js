@@ -6,7 +6,7 @@ const CHAR_TO_HEX = {
   D: '#F2CE1B',
   F: '#28B56F',
   B: '#2D6BE0',
-  R: '#E8483F',
+  R: '#D62B24',
   L: '#FF8A2A',
 }
 
@@ -94,10 +94,11 @@ function invertMove(move) {
 }
 
 export class CubeView {
-  constructor(container, facelet, moves = []) {
+  constructor(container, facelet, moves = [], options = {}) {
     this.container = container
     this.facelet = facelet
     this.moves = moves
+    this.onViewChange = options.onViewChange || null
     this.cubies = []
     this.animating = false
     this.destroyed = false
@@ -223,7 +224,10 @@ export class CubeView {
       if (!this.pointer || this.animating) return
       const dx = event.clientX - this.pointer.x
       const dy = event.clientY - this.pointer.y
-      if (Math.abs(dx) + Math.abs(dy) > 3) this.dragged = true
+      if (Math.abs(dx) + Math.abs(dy) > 3 && !this.dragged) {
+        this.dragged = true
+        this.onViewChange?.()
+      }
       this.pointer = { x: event.clientX, y: event.clientY }
       this.viewGroup.rotation.y += dx * 0.007
       this.viewGroup.rotation.x = Math.max(-0.85, Math.min(0.85, this.viewGroup.rotation.x + dy * 0.006))

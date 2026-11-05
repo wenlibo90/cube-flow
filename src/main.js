@@ -25,6 +25,17 @@ const SCAN_STEPS = [
   { role: 'D', color: 'yellow', label: '黄色面', pose: '把黄色面对准取景框，绿色边朝上', short: '黄面 · 绿边朝上' },
 ]
 
+const TURN_HINTS = [
+  null,
+  { icon: 'rotateCcw', text: '向左转 90°' },
+  { icon: 'rotateCcw', text: '向左转 90°' },
+  { icon: 'rotateCcw', text: '向左转 90°' },
+  { icon: 'arrowUp', text: '向前翻转 90°' },
+  { icon: 'refresh', text: '再向后翻转 180°' },
+]
+
+const HERO_FACELET = 'UBULURUFURURFRBRDRFUFLFRFDFDFDLDRDBDLULBLFLDLBUBRBLBDB'
+
 const state = {
   faces: [],
   scanMode: 'full',
@@ -41,15 +52,16 @@ const state = {
   autoTimer: null,
   solveToken: 0,
   scanToken: 0,
-  scanValidation: { status: 'idle', message: '', faces: [] },
-  scanValidationToken: 0,
   cameraLive: false,
   toastTimer: null,
+  guideViewMoved: false,
 }
 
 let scanner = null
 let solver = null
 let cubeView = null
+let heroCubeView = null
+let heroCubeToken = 0
 let cubeViewModulePromise = null
 let qrRenderToken = 0
 
@@ -61,7 +73,7 @@ const app = document.querySelector('#app')
 app.innerHTML = renderApp()
 cacheDom()
 bindStaticEvents()
-renderHeroCube(document.querySelector('#hero-cube'))
+mountHeroCube()
 renderScanProgress()
 resetLivePreview()
 initScanner()
@@ -96,13 +108,6 @@ function renderApp() {
               <span>查看演示</span>
             </button>
           </div>
-          <div class="hero-steps" aria-label="使用流程">
-            <span><b>01</b> 拍照</span>
-            <i></i>
-            <span><b>02</b> 确认</span>
-            <i></i>
-            <span><b>03</b> 按步骤还原</span>
-          </div>
         </div>
 
         <div class="hero-visual" aria-hidden="true">
@@ -110,7 +115,6 @@ function renderApp() {
           <div class="orbit orbit-two"></div>
           <div class="hero-cube" id="hero-cube"></div>
           <div class="float-chip chip-top"><span class="status-dot"></span>6 面确认</div>
-          <div class="float-chip chip-bottom"><strong>0</strong><span>手动输入</span></div>
           <div class="float-chip chip-side">${icon('camera', 'icon', 15)}<span>逐面快门</span></div>
         </div>
       </main>
@@ -123,19 +127,15 @@ function renderApp() {
           <span class="brand-copy"><strong>转一圈</strong><em>CUBE FLOW</em></span>
         </button>
         <div class="stage-nav" aria-label="当前步骤">
-          <span class="is-active"><b>01</b> 扫描</span>
-          <span><b>02</b> 校验</span>
-          <span><b>03</b> 还原</span>
+          <span class="is-active" data-stage="scan"><b>01</b> 扫描</span>
+          <span data-stage="review"><b>02</b> 校验</span>
+          <span data-stage="guide"><b>03</b> 还原</span>
         </div>
         <button class="icon-btn" id="scan-back" aria-label="退出扫描">${icon('close', 'icon', 20)}</button>
       </header>
 
       <main class="scan-layout">
         <div class="scan-main">
-          <div class="scan-heading">
-            <h2>白面向上，绿面朝前</h2>
-          </div>
-
           <div class="camera-shell" id="camera-shell">
             <video id="camera-video" autoplay muted playsinline></video>
             <div class="camera-vignette"></div>
@@ -147,6 +147,7 @@ function renderApp() {
               <span class="corner bl"></span><span class="corner br"></span>
               <div class="scan-beam"></div>
             </div>
+            <div class="scan-hint" id="scan-hint" hidden></div>
             <div class="scan-target" id="scan-target">
               <span class="target-dot" id="scan-target-dot"></span>
               <div><em>当前目标</em><strong id="scan-target-label">绿色面</strong><small id="scan-target-pose">白上 · 绿前</small></div>
@@ -216,7 +217,6 @@ function renderApp() {
             </div>
             <div class="face-progress" id="face-progress"></div>
             <p class="progress-note" id="progress-note" aria-live="polite">每个面按一次快门。</p>
-            <button class="text-btn scan-reset" id="scan-rescan-all" type="button">${icon('refresh', 'icon', 15)} 重新扫描全部</button>
           </div>
 
           <div class="panel live-card">
@@ -229,6 +229,8 @@ function renderApp() {
             </div>
             <p class="live-note" id="live-note">保持整面位于取景框内</p>
           </div>
+
+          <button class="text-btn scan-reset" id="scan-rescan-all" type="button">${icon('refresh', 'icon', 15)} 重新扫描全部</button>
         </aside>
       </main>
     </section>
@@ -240,23 +242,18 @@ function renderApp() {
           <span class="brand-copy"><strong>转一圈</strong><em>CUBE FLOW</em></span>
         </button>
         <div class="stage-nav" aria-label="当前步骤">
-          <span class="is-done"><b>01</b> 扫描</span>
-          <span class="is-active"><b>02</b> 校验</span>
-          <span><b>03</b> 还原</span>
+          <span class="is-done" data-stage="scan"><b>01</b> 扫描</span>
+          <span class="is-active" data-stage="review"><b>02</b> 校验</span>
+          <span data-stage="guide"><b>03</b> 还原</span>
         </div>
         <button class="icon-btn" data-action="home" aria-label="退出">${icon('close', 'icon', 20)}</button>
       </header>
 
       <main class="review-layout">
         <section class="review-main">
-          <div class="section-heading">
-            <p class="eyebrow">RECOGNITION REVIEW</p>
-            <h2>六个面，都在这里。</h2>
-            <p>确认后的六个面都在这里。数量不对时点色块修正，或重拍有问题的一面。</p>
-          </div>
           <div class="review-alert" id="review-alert" role="status"></div>
           <div class="review-grid" id="review-grid"></div>
-          <p class="review-tip">${icon('info', 'icon', 15)} 点一下色块，颜色循环切换。中心块用于定位，通常不需要修改。</p>
+          <p class="review-tip">${icon('info', 'icon', 15)} 点一下色块，颜色循环切换。中心块用于定位，不可修改。</p>
         </section>
 
         <aside class="review-side">
@@ -275,7 +272,6 @@ function renderApp() {
             <span class="btn-arrow">${icon('arrowRight', 'icon', 18)}</span>
           </button>
           <button class="text-btn" id="rescan-all">${icon('refresh', 'icon', 15)} 重新扫描全部</button>
-          <p class="side-note">确认后的六面会自动校验。</p>
         </aside>
       </main>
     </section>
@@ -287,9 +283,9 @@ function renderApp() {
           <span class="brand-copy"><strong>转一圈</strong><em>CUBE FLOW</em></span>
         </button>
         <div class="stage-nav" aria-label="当前步骤">
-          <span class="is-done"><b>01</b> 扫描</span>
-          <span class="is-done"><b>02</b> 校验</span>
-          <span class="is-active"><b>03</b> 还原</span>
+          <span class="is-done" data-stage="scan"><b>01</b> 扫描</span>
+          <span class="is-done" data-stage="review"><b>02</b> 校验</span>
+          <span class="is-active" data-stage="guide"><b>03</b> 还原</span>
         </div>
         <button class="text-btn text-btn-quiet" data-action="home">退出</button>
       </header>
@@ -302,15 +298,11 @@ function renderApp() {
             <div class="cube-canvas" id="cube-canvas"></div>
             <div class="cube-topline">
               <span class="stage-label"><span class="status-dot"></span>3D 还原预览</span>
-              <span class="orientation-chip"><i class="swatch white"></i>白上<i class="swatch green"></i>绿前</span>
+              <span class="orientation-chip">${icon('info', 'icon', 13)}保持<i class="swatch white"></i>白上<i class="swatch green"></i>绿前</span>
             </div>
-            <div class="cube-align-hint">${icon('info', 'icon', 13)}<span>手中魔方保持白上绿前</span></div>
             <div class="cube-bottomline">
-              <span>${icon('drag', 'icon', 14)} 拖动可旋转视角</span>
-              <span class="cube-bottom-actions">
-                <button class="cube-reset-view" id="cube-reset-view" type="button">${icon('refresh', 'icon', 13)} 还原视角</button>
-                <span id="guide-counter">0 / 0</span>
-              </span>
+              <button class="cube-view-toggle" id="cube-view-toggle" type="button">${icon('drag', 'icon', 14)}<span>拖动可旋转视角</span></button>
+              <span id="guide-counter">0 / 0</span>
             </div>
           </section>
 
@@ -321,7 +313,6 @@ function renderApp() {
               ${icon('arrowRight', 'icon', 18)}
             </button>
           </div>
-          <p class="guide-note">转动方向以该面正对你的视角判断。</p>
         </div>
 
         <aside class="guide-side">
@@ -347,7 +338,7 @@ function renderApp() {
         <button class="qr-close" id="qr-close" aria-label="关闭">${icon('close', 'icon', 18)}</button>
         <p class="eyebrow">CONTINUE ON PHONE</p>
         <h2 id="qr-title">用手机扫描</h2>
-        <p class="qr-sub">当前设备不启用相机，请用手机扫描打开当前页面。</p>
+        <p class="qr-sub">当前设备不启用相机，请用手机扫描打开页面。</p>
         <div class="qr-code"><canvas id="qr-canvas"></canvas></div>
         <p class="qr-url" id="qr-url"></p>
       </div>
@@ -376,6 +367,7 @@ function cacheDom() {
     shutterBtn: document.querySelector('#shutter-btn'),
     shutterLabel: document.querySelector('#shutter-label'),
     shutterMessage: document.querySelector('#shutter-message'),
+    scanHint: document.querySelector('#scan-hint'),
     shutterCount: document.querySelector('#shutter-count'),
     captureReview: document.querySelector('#capture-review'),
     capturePhoto: document.querySelector('#capture-photo'),
@@ -399,6 +391,7 @@ function cacheDom() {
     colorCounts: document.querySelector('#color-counts'),
     reviewStatus: document.querySelector('#review-status'),
     reviewAction: document.querySelector('#review-action'),
+    cubeViewToggle: document.querySelector('#cube-view-toggle'),
     guideCounter: document.querySelector('#guide-counter'),
     stepSummary: document.querySelector('#step-summary'),
     stepProgress: document.querySelector('#step-progress'),
@@ -443,7 +436,16 @@ function bindStaticEvents() {
   document.querySelector('#step-prev').addEventListener('click', handleStepPrev)
   document.querySelector('#step-next').addEventListener('click', handleStepNext)
   document.querySelector('#step-panel').addEventListener('click', handleStepPanelClick)
-  document.querySelector('#cube-reset-view').addEventListener('click', () => cubeView?.resetView())
+  document.addEventListener('click', (event) => {
+    const stageItem = event.target.closest('.stage-nav [data-stage]')
+    if (!stageItem) return
+    goToStage(stageItem.dataset.stage)
+  })
+  document.querySelector('#cube-view-toggle').addEventListener('click', () => {
+    if (!cubeView || !state.guideViewMoved) return
+    cubeView.resetView()
+    updateCubeViewHint(false)
+  })
 
   document.addEventListener('keydown', (event) => {
     if (!state.dom.qrModal.hidden && event.key === 'Escape') {
@@ -479,6 +481,7 @@ function bindStaticEvents() {
     scanner?.destroy()
     solver?.destroy()
     cubeView?.destroy()
+    heroCubeView?.destroy()
   })
 }
 
@@ -510,7 +513,7 @@ async function openQrModal() {
     const { default: QRCode } = await import('qrcode')
     if (token !== qrRenderToken || state.dom.qrModal.hidden) return
     await QRCode.toCanvas(state.dom.qrCanvas, url, {
-      width: 240,
+      width: 218,
       margin: 1,
       errorCorrectionLevel: 'M',
       color: { dark: '#08090b', light: '#f3f4ef' },
@@ -534,6 +537,51 @@ function setScreen(name) {
     screen.classList.toggle('is-active', screen.dataset.screen === name)
   }
   window.scrollTo({ top: 0, behavior: 'auto' })
+  updateStageNav()
+  if (name === 'landing') mountHeroCube()
+  else unmountHeroCube()
+}
+
+function stageLocks() {
+  const scanDone = state.faces.length === 6
+  const reviewDone = Boolean(state.solution?.ok)
+  return { scanDone, reviewDone }
+}
+
+function updateStageNav() {
+  const { scanDone, reviewDone } = stageLocks()
+  state.dom.screens.forEach((screen) => {
+    screen.querySelectorAll('.stage-nav [data-stage]').forEach((item) => {
+      const stage = item.dataset.stage
+      const enabled = stage === 'scan'
+        || (stage === 'review' && scanDone)
+        || (stage === 'guide' && reviewDone)
+      const active = stage === state.screen
+      item.classList.toggle('is-active', active)
+      item.classList.toggle('is-done', !active && ((stage === 'scan' && scanDone) || (stage === 'review' && reviewDone)))
+      item.classList.toggle('is-locked', !enabled)
+      item.setAttribute('aria-disabled', enabled ? 'false' : 'true')
+    })
+  })
+}
+
+function goToStage(stage) {
+  const { scanDone, reviewDone } = stageLocks()
+  if (stage === state.screen) return
+  if (stage === 'scan') {
+    cleanupCubeView()
+    setScreen('scan')
+    renderScanProgress()
+    if (!scanDone && state.cameraLive) scanner.start()
+    return
+  }
+  if (stage === 'review') {
+    if (!scanDone) return
+    cleanupCubeView()
+    openReview({ autoEnter: false, autoSolve: false, solution: reviewDone ? state.solution : null })
+    return
+  }
+  if (stage === 'guide' && reviewDone) enterGuide({ resume: true })
 }
 
 function initScanner() {
@@ -664,6 +712,22 @@ function updateScanTarget(step) {
   state.dom.scanTargetPose.textContent = step.short
 }
 
+function updateScanHint() {
+  const hint = state.dom.scanHint
+  if (!hint) return
+  const step = currentScanStep()
+  if (!step) {
+    hint.hidden = true
+    hint.innerHTML = ''
+    return
+  }
+  const meta = state.scanMode === 'full' ? TURN_HINTS[state.scanStep] : null
+  hint.hidden = false
+  hint.innerHTML = meta
+    ? `${icon(meta.icon, 'icon', 13)}<span>${meta.text}<em>让${step.label}朝前</em></span>`
+    : `${icon('cube', 'icon', 13)}<span><i class="swatch white"></i>白面向上<i class="swatch green"></i>绿面朝前</span>`
+}
+
 function setShutterMessage(text, tone = 'neutral') {
   state.dom.shutterMessage.textContent = text
   state.dom.shutterMessage.dataset.tone = tone
@@ -745,18 +809,12 @@ async function triggerCapture() {
     return
   }
 
-  const centerGuess = best.grid[1][1]
-  const centerConfidence = best.confidences?.[1]?.[1] || 0
   best.grid[1][1] = step.color
-  const centerWarning = centerGuess && centerGuess !== step.color && centerConfidence >= 0.52
-    ? `中心是${COLORS[centerGuess].name}，目标${step.label}，拍错面请重拍。`
-    : ''
 
   showCaptureReview({
     step,
     grid: best.grid,
     image: best.image,
-    centerWarning,
   })
 }
 
@@ -768,9 +826,9 @@ function resumeLiveAfterCapture(message) {
   if (step) handleScannerStatus(`把${step.label}整面对准取景框`, 'target')
 }
 
-function showCaptureReview({ step, grid, image, centerWarning, adjustIndex = null }) {
+function showCaptureReview({ step, grid, image, adjustIndex = null }) {
   const adjusting = adjustIndex != null
-  state.capturePending = { step, grid, image, centerWarning, adjustIndex }
+  state.capturePending = { step, grid, image, adjustIndex }
   state.dom.capturePhoto.hidden = !image
   if (image) state.dom.capturePhoto.src = image
   else state.dom.capturePhoto.removeAttribute('src')
@@ -838,11 +896,9 @@ function updateCaptureWarning() {
   const pending = state.capturePending
   if (!pending) return
   const missing = 8 - countOuterFilled(pending.grid)
-  const parts = []
-  if (missing > 0) parts.push(`有 ${missing} 个格子没识别到，点格子修正或重拍。`)
-  if (pending.centerWarning) parts.push(pending.centerWarning)
-  state.dom.captureWarning.hidden = parts.length === 0
-  state.dom.captureWarning.textContent = parts.join(' ')
+  const text = missing > 0 ? `有 ${missing} 个格子没识别到，点格子修正或重拍。` : ''
+  state.dom.captureWarning.hidden = !text
+  state.dom.captureWarning.textContent = text
 }
 
 function updateCaptureConfirmState() {
@@ -880,14 +936,12 @@ function openFaceAdjust(index) {
   if (!face) return
   const step = stepForFaceIndex(index)
   if (!step) return
-  state.scanValidationToken += 1
   state.solution = null
   scanner.pause()
   showCaptureReview({
     step,
     grid: cloneGrid(face.grid),
     image: face.image || '',
-    centerWarning: '',
     adjustIndex: index,
   })
 }
@@ -897,6 +951,10 @@ function handleScanProgressClick(event) {
   if (!button) return
   const index = Number(button.dataset.progressIndex)
   if (Number.isNaN(index) || !state.faces[index]) return
+  if (state.capturePending) {
+    if (state.capturePending.adjustIndex === index) return
+    hideCaptureReview()
+  }
   openFaceAdjust(index)
 }
 
@@ -907,7 +965,6 @@ function restartScanAll() {
   state.solveToken += 1
   state.captureBusy = false
   hideCaptureReview()
-  resetScanValidation()
   state.scanMode = 'full'
   state.rescanIndex = null
   state.scanStep = 0
@@ -952,8 +1009,7 @@ function retakeCapture() {
   if (adjustIndex != null) {
     hideCaptureReview()
     renderScanProgress()
-    if (state.scanMode === 'full' && state.faces.length === 6) validateCompletedScan()
-    else if (state.cameraLive) scanner.start()
+    if (!completeScanIfReady() && state.cameraLive) scanner.start()
     return
   }
   hideCaptureReview()
@@ -969,7 +1025,7 @@ function confirmCapture() {
     updateCaptureConfirmState()
     return
   }
-  const { step, grid, image, adjustIndex, centerWarning } = state.capturePending
+  const { step, grid, image, adjustIndex } = state.capturePending
   if (adjustIndex != null) {
     const face = state.faces[adjustIndex]
     if (!face) {
@@ -981,7 +1037,6 @@ function confirmCapture() {
     face.center = step.color
     face.grid[1][1] = step.color
     face.capturedAt = Date.now()
-    face.suspect = false
     hideCaptureReview()
     renderScanProgress()
     const current = currentScanStep()
@@ -990,8 +1045,8 @@ function confirmCapture() {
       handleScannerStatus(`把${current.label}整面对准取景框`, 'target')
       if (state.cameraLive) scanner.start()
       showToast(`${COLORS[face.center].name}面已保存`, face.center, `继续拍${current.label}`)
-    } else if (state.faces.length === 6) {
-      validateCompletedScan()
+    } else {
+      completeScanIfReady()
     }
     return
   }
@@ -999,7 +1054,6 @@ function confirmCapture() {
     grid,
     center: step.color,
     image,
-    suspect: Boolean(centerWarning),
     capturedAt: Date.now(),
   }
   hideCaptureReview()
@@ -1020,7 +1074,6 @@ async function beginScan({ mode = 'full', rescanIndex = null, resume = false } =
   state.solveToken += 1
   state.captureBusy = false
   state.capturePending = null
-  resetScanValidation()
   if (mode === 'full' && !resume) {
     state.faces = []
     state.scanStep = 0
@@ -1139,9 +1192,9 @@ function handleCapture(face) {
     state.cameraLive = false
     state.captureBusy = false
     updateShutterState()
-    setShutterMessage('六个面已确认，正在校验', 'success')
-    showToast(`${COLORS[face.center].name}面已确认`, face.center, '6 / 6 · 正在校验')
-    validateCompletedScan()
+    setShutterMessage('六个面已确认，正在进入核对页', 'success')
+    showToast(`${COLORS[face.center].name}面已确认`, face.center, '6 / 6 · 进入核对页')
+    completeScanIfReady()
     return
   }
 
@@ -1185,6 +1238,7 @@ function renderScanProgress() {
 
   const step = currentScanStep()
   updateScanTarget(step)
+  updateScanHint()
   updateShutterState()
   if (step) {
     state.dom.progressNote.textContent = state.scanMode === 'rescan'
@@ -1192,108 +1246,16 @@ function renderScanProgress() {
       : `${step.label} · ${step.pose}`
     setShutterMessage(step.pose)
   } else if (state.scanMode === 'full' && state.faces.length === 6) {
-    renderScanValidation()
+    state.dom.progressNote.textContent = '六个面已拍完，点任意一面可查看修改。'
   } else {
     state.dom.progressNote.textContent = '按目标提示拍摄六个面。'
   }
 }
 
-function resetScanValidation() {
-  state.scanValidationToken += 1
-  state.scanValidation = { status: 'idle', message: '', faces: [] }
-}
-
-function setScanValidation(status, message, faces = []) {
-  state.scanValidation = { status, message, faces }
-  renderScanValidation()
-}
-
-function renderScanValidation() {
-  if (state.scanMode !== 'full' || state.faces.length !== 6) return
-  const { status, message, faces } = state.scanValidation
-  const tone = status === 'error'
-    ? 'error'
-    : status === 'passed'
-      ? 'success'
-      : status === 'checking'
-        ? 'busy'
-        : 'neutral'
-  const text = message || '六个面已拍完，点有提示的面修改。'
-  state.dom.progressNote.textContent = text
-  state.dom.progressNote.dataset.tone = tone === 'neutral' ? '' : tone
-  setShutterMessage(text, tone)
-  const warned = new Set(faces || [])
-  state.dom.faceProgress.querySelectorAll('.progress-face[data-progress-index]').forEach((el) => {
-    el.classList.toggle('is-warning', warned.has(Number(el.dataset.progressIndex)))
-  })
-}
-
-function suspectFacesForCounts(counts) {
-  const over = new Set(COLOR_KEYS.filter((key) => counts[key] > 9))
-  const bad = new Set(COLOR_KEYS.filter((key) => counts[key] !== 9))
-  const warned = []
-  const overMatches = []
-  state.faces.forEach((face, index) => {
-    if (face.suspect) warned.push(index)
-    if (face.grid.flat().some((key) => over.has(key))) overMatches.push(index)
-  })
-  if (warned.length) return warned
-  if (overMatches.length) return overMatches
-  const badMatches = []
-  state.faces.forEach((face, index) => {
-    if (face.grid.flat().some((key) => bad.has(key))) badMatches.push(index)
-  })
-  return badMatches.length ? badMatches : state.faces.map((_, index) => index)
-}
-
-async function validateCompletedScan() {
-  if (state.scanMode !== 'full' || state.faces.length !== 6) return
-  const token = ++state.scanValidationToken
-  const counts = countColors(state.faces)
-  const centers = new Set(state.faces.map((face) => face.center))
-
-  if (!isCountComplete(counts)) {
-    const badKeys = COLOR_KEYS.filter((key) => counts[key] !== 9)
-    const detail = badKeys.map((key) => `${COLORS[key].label} ${counts[key]}/9`).join('，')
-    setScanValidation('error', `颜色数量不对：${detail}。点有提示的面修改。`, suspectFacesForCounts(counts))
-    return
-  }
-
-  if (centers.size !== 6) {
-    const byColor = new Map()
-    state.faces.forEach((face, index) => {
-      if (!byColor.has(face.center)) byColor.set(face.center, [])
-      byColor.get(face.center).push(index)
-    })
-    const duplicate = new Set()
-    for (const indices of byColor.values()) {
-      if (indices.length > 1) indices.forEach((index) => duplicate.add(index))
-    }
-    setScanValidation('error', '中心色重复，点有提示的面修改。', Array.from(duplicate))
-    return
-  }
-
-  setScanValidation('checking', '正在校验六面。', [])
-
-  try {
-    const result = await solver.solve(state.faces.map((face) => ({ center: face.center, grid: face.grid })))
-    if (token !== state.scanValidationToken) return
-    if (!result.ok) {
-      setScanValidation('error', '色块组合不合法，点有提示的面核对修改。', state.faces.map((_, index) => index))
-      return
-    }
-
-    state.solution = result
-    setScanValidation('passed', '六面校验通过，正在进入下一步。', [])
-    setTimeout(() => {
-      if (token !== state.scanValidationToken) return
-      if (state.scanMode !== 'full' || state.faces.length !== 6 || !state.solution?.ok) return
-      openReview({ autoEnter: true, autoSolve: false, solution: state.solution })
-    }, 750)
-  } catch {
-    if (token !== state.scanValidationToken) return
-    setScanValidation('error', '校验失败，点有提示的面核对修改。', state.faces.map((_, index) => index))
-  }
+function completeScanIfReady() {
+  if (state.scanMode !== 'full' || state.faces.length !== 6) return false
+  openReview({ autoEnter: true, autoSolve: true })
+  return true
 }
 
 function miniFaceMarkup(grid) {
@@ -1364,7 +1326,7 @@ function renderReview() {
         <div class="sticker-grid">
           ${face.grid.flatMap((row, r) => row.map((key, c) => {
             const center = r === 1 && c === 1
-            return `<button class="sticker ${center ? 'is-center' : ''}" data-face="${index}" data-row="${r}" data-col="${c}" style="--sticker:${COLORS[key]?.hex || '#333'}" aria-label="第${r + 1}行第${c + 1}列，当前${COLORS[key]?.name || '未知'}，点击切换颜色"><span></span></button>`
+            return `<button class="sticker ${center ? 'is-center' : ''}" data-face="${index}" data-row="${r}" data-col="${c}"${center ? ' disabled' : ''} style="--sticker:${COLORS[key]?.hex || '#333'}" aria-label="${center ? '中心块不可修改' : `第${r + 1}行第${c + 1}列，当前${COLORS[key]?.name || '未知'}，点击切换颜色`}"><span></span></button>`
           })).join('')}
         </div>
       </article>
@@ -1418,18 +1380,9 @@ function handleReviewGridClick(event) {
   const nextIndex = (COLOR_KEYS.indexOf(current) + 1) % COLOR_KEYS.length
   const next = COLOR_KEYS[nextIndex]
   face.grid[row][col] = next
-  if (row === 1 && col === 1) face.center = next
 
   sticker.style.setProperty('--sticker', COLORS[next].hex)
   sticker.setAttribute('aria-label', `第${row + 1}行第${col + 1}列，当前${COLORS[next].name}，点击切换颜色`)
-
-  if (row === 1 && col === 1) {
-    const card = sticker.closest('.face-card')
-    card.querySelector('.face-center-dot').style.background = COLORS[next].hex
-    const role = ROLE_BY_COLOR[next] || '?'
-    card.querySelector('.face-role').textContent = FACE_NAMES[role] || `第 ${faceIndex + 1} 面`
-    card.querySelector('.face-sub').textContent = `${role} · ${COLORS[next].name}中心`
-  }
 
   state.reviewDirty = true
   state.solution = null
@@ -1449,7 +1402,7 @@ function handleReviewGridClick(event) {
   } else if (centers.size !== 6) {
     state.actionKind = 'disabled'
     updateReviewAction('修正重复的中心色')
-    setReviewAlert('error', '中心色重复', '两个面出现了相同中心色。请点击中心块，把它切换成缺失的颜色。')
+    setReviewAlert('error', '中心色重复', '两个面出现了相同中心色，请重新扫描对应面。')
   } else {
     state.actionKind = 'solve'
     updateReviewAction('校验并开始还原')
@@ -1507,7 +1460,7 @@ async function validateAndSolve({ autoEnter = false } = {}) {
   if (centers.size !== 6) {
     state.actionKind = 'disabled'
     updateReviewAction('修正重复的中心色')
-    setReviewAlert('error', '中心色重复', '两个面出现了相同中心色。请点击中心块，把它切换成缺失的颜色。')
+    setReviewAlert('error', '中心色重复', '两个面出现了相同中心色，请重新扫描对应面。')
     return
   }
   if (state.faces.length !== 6) {
@@ -1538,6 +1491,7 @@ async function validateAndSolve({ autoEnter = false } = {}) {
     state.solution = result
     state.actionKind = 'guide'
     updateReviewAction('开始还原')
+    updateStageNav()
     setReviewAlert(
       'success',
       '校验通过',
@@ -1608,14 +1562,14 @@ function facesFromFacelet(facelet) {
   })
 }
 
-async function enterGuide() {
+async function enterGuide({ resume = false } = {}) {
   if (!state.solution?.ok) return
   clearTimeout(state.autoTimer)
   state.autoTimer = null
   scanner.pause()
   scanner.stopCamera()
   state.cameraLive = false
-  state.stepIndex = 0
+  if (!resume) state.stepIndex = 0
   state.stepBusy = false
   state.busy = false
   let CubeViewClass
@@ -1631,23 +1585,41 @@ async function enterGuide() {
   setScreen('guide')
   state.dom.cubeCanvas.innerHTML = ''
   try {
-    cubeView = new CubeViewClass(state.dom.cubeCanvas, state.solution.facelet, state.solution.moves)
+    cubeView = new CubeViewClass(state.dom.cubeCanvas, state.solution.facelet, state.solution.moves, {
+      onViewChange: () => updateCubeViewHint(true),
+    })
   } catch {
     setScreen('review')
     setReviewAlert('error', '3D 预览无法启动', '当前浏览器可能不支持 WebGL，请换一个浏览器打开。')
     return
   }
+  updateCubeViewHint(false)
   state.dom.cubeStage.classList.remove('is-complete')
   state.dom.guideActions.hidden = false
   state.dom.stepSummary.textContent = `准备开始 / 共 ${state.solution.moves.length} 步`
   state.dom.guideCounter.textContent = `0 / ${state.solution.moves.length}`
   renderSequence()
-  if (state.solution.moves.length === 0) {
+  const moves = state.solution.moves
+  if (moves.length === 0) {
     state.stepIndex = 0
     renderSuccess(true)
+  } else if (resume && state.stepIndex > 0) {
+    await cubeView.resetTo(state.solution.facelet, moves, state.stepIndex)
+    if (state.stepIndex >= moves.length) renderSuccess(false)
+    else renderStep()
   } else {
     renderStep()
   }
+}
+
+function updateCubeViewHint(moved) {
+  state.guideViewMoved = moved
+  const button = state.dom.cubeViewToggle
+  if (!button) return
+  button.classList.toggle('is-action', moved)
+  button.innerHTML = moved
+    ? `${icon('refresh', 'icon', 13)}<span>还原视角</span>`
+    : `${icon('drag', 'icon', 14)}<span>拖动可旋转视角</span>`
 }
 
 function cleanupCubeView() {
@@ -1732,7 +1704,6 @@ function renderSuccess(alreadySolved = false) {
   state.dom.stepDetail.innerHTML = `
     <div class="success-card">
       <div class="success-mark">${icon('check', 'icon', 28)}</div>
-      <p class="eyebrow">CUBE SOLVED</p>
       <h2>${alreadySolved ? '它本来就是还原状态。' : '还原完成。'}</h2>
       <p>${alreadySolved ? '没有任何步骤需要执行。' : `${moves.length} 步全部完成，魔方的六个面已经回到纯色。`}</p>
       <div class="success-stats">
@@ -1836,7 +1807,6 @@ function goHome() {
   state.reviewDirty = false
   state.busy = false
   state.stepIndex = 0
-  resetScanValidation()
   renderScanProgress()
   setScreen('landing')
 }
@@ -1862,67 +1832,29 @@ function showToast(title, colorKey = null, sub = '') {
   }, 2200)
 }
 
-function renderHeroCube(container) {
-  if (!container) return
-  const width = 520
-  const height = 540
-  const rows = []
-  let seed = 9217
-  const random = () => {
-    seed = (seed * 1664525 + 1013904223) >>> 0
-    return seed / 4294967296
+async function mountHeroCube() {
+  const container = document.querySelector('#hero-cube')
+  if (!container || heroCubeView || !isScreen('landing')) return
+  const token = ++heroCubeToken
+  let CubeViewClass
+  try {
+    const module = await loadCubeView()
+    CubeViewClass = module.CubeView
+  } catch {
+    return
   }
-  const colors = COLOR_KEYS.map((key) => COLORS[key].hex)
-  const faceColors = () => Array.from({ length: 9 }, () => colors[Math.floor(random() * colors.length)])
-
-  const shade = (hex, factor) => {
-    const value = parseInt(hex.slice(1), 16)
-    const r = Math.round(((value >> 16) & 255) * factor)
-    const g = Math.round(((value >> 8) & 255) * factor)
-    const b = Math.round((value & 255) * factor)
-    return `rgb(${r},${g},${b})`
+  if (token !== heroCubeToken || heroCubeView || !isScreen('landing')) return
+  container.innerHTML = ''
+  try {
+    heroCubeView = new CubeViewClass(container, HERO_FACELET)
+  } catch {
+    heroCubeView = null
   }
+}
 
-  const tile = (points, color, factor) => {
-    const coordinates = points.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ')
-    return `<polygon points="${coordinates}" fill="${shade(color, factor)}" stroke="#08090b" stroke-width="7" stroke-linejoin="round" />`
-  }
-
-  const renderFace = (origin, u, v, factor, palette) => {
-    const polygons = []
-    for (let row = 0; row < 3; row += 1) {
-      for (let col = 0; col < 3; col += 1) {
-        const p00 = [origin[0] + (u[0] * col) / 3 + (v[0] * row) / 3, origin[1] + (u[1] * col) / 3 + (v[1] * row) / 3]
-        const p10 = [p00[0] + u[0] / 3, p00[1] + u[1] / 3]
-        const p11 = [p00[0] + u[0] / 3 + v[0] / 3, p00[1] + u[1] / 3 + v[1] / 3]
-        const p01 = [p00[0] + v[0] / 3, p00[1] + v[1] / 3]
-        polygons.push(tile([p00, p10, p11, p01], palette[row * 3 + col], factor))
-      }
-    }
-    return polygons.join('')
-  }
-
-  const leftFace = renderFace([80, 170], [180, 100], [0, 200], 0.72, faceColors())
-  const rightFace = renderFace([260, 270], [180, -100], [0, 200], 0.56, faceColors())
-  const topFace = renderFace([260, 70], [180, 100], [-180, 100], 1, faceColors())
-  rows.push(leftFace, rightFace, topFace)
-
-  container.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="打乱的三阶魔方等距插画">
-      <defs>
-        <filter id="cube-shadow" x="-40%" y="-40%" width="180%" height="180%">
-          <feDropShadow dx="0" dy="26" stdDeviation="26" flood-color="#000000" flood-opacity="0.45"/>
-        </filter>
-        <linearGradient id="cube-sheen" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#ffffff" stop-opacity="0.14"/>
-          <stop offset="0.52" stop-color="#ffffff" stop-opacity="0"/>
-          <stop offset="1" stop-color="#000000" stop-opacity="0.18"/>
-        </linearGradient>
-      </defs>
-      <g filter="url(#cube-shadow)">
-        ${rows.join('')}
-        <path d="M80 170 260 70 440 170 260 270Z" fill="url(#cube-sheen)" pointer-events="none" opacity="0.55"/>
-      </g>
-    </svg>
-  `
+function unmountHeroCube() {
+  heroCubeToken += 1
+  if (!heroCubeView) return
+  heroCubeView.destroy()
+  heroCubeView = null
 }
