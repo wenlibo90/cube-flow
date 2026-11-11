@@ -50,6 +50,10 @@ logs/
 
 # Capacitor / Android
 android/local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
 android/.gradle/
 .gradle/
 *.iml

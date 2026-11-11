@@ -2,6 +2,7 @@
   "name": "cube-flow",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "拍魔方 Cube Flow：六面逐张快门、冻结照片校色、本地求解与 3D 分步还原指导的魔方助手。",
   "scripts": {

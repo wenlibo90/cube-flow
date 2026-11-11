@@ -1,12 +1,22 @@
 # 拍魔方 · CubScan
 
+<p>
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-28b56f">
+  <img alt="vite" src="https://img.shields.io/badge/Vite-8-646CFF">
+  <img alt="three.js" src="https://img.shields.io/badge/three.js-r187-black">
+  <img alt="capacitor" src="https://img.shields.io/badge/Android-Capacitor%208-53B9EA">
+  <img alt="no backend" src="https://img.shields.io/badge/%E6%97%A0%E5%90%8E%E7%AB%AF-%E6%9C%AC%E5%9C%B0%E8%BF%90%E7%AE%97-9ab7ff">
+</p>
+
 <p align="center">
   <img src="docs/landing.png" alt="拍魔方首页" width="920">
 </p>
 
 用手机把魔方六个面各拍一张，在冻结照片上点格子校正颜色，交给浏览器本地校验和求解，再跟着 3D 分步指导把魔方还原。
 
-纯前端应用，无后端、无账号、画面不上传。
+纯前端应用，无后端、无账号、画面不上传。既可以在浏览器里直接用，也可以用 Capacitor 打成安卓 App 装在手机上。
+
+> 适合谁：手上有个打乱的魔方但不想背公式的人；想边看 3D 演示边学还原的人；想研究「相机采样 + 颜色分类 + 本地求解」这条链路怎么做的开发者。
 
 ## 双端结构
 
@@ -127,6 +137,40 @@ npm run preview
 
 预览默认运行在 `http://localhost:4173`。
 
+## 打包成安卓 App
+
+项目用 [Capacitor](https://capacitorjs.com/) 8 把同一份前端产物装进 Android WebView，页面、识别和求解逻辑完全复用，没有第二套实现。
+
+### 环境要求
+
+- Node.js 20.19+（或 22.12+）
+- JDK 17+
+- Android SDK（Platform 36 / Build-Tools 35 会自动补齐），并配置 `ANDROID_HOME` 或 `android/local.properties`
+
+### 构建步骤
+
+```bash
+npm install
+npm run build          # 产出 dist/
+npx cap sync android   # 同步 dist 到 android/app/src/main/assets/public
+cd android
+./gradlew assembleDebug   # Windows: .\gradlew.bat assembleDebug
+```
+
+产物在 `android/app/build/outputs/apk/debug/app-debug.apk`，直接传到手机安装即可（首次安装需允许「安装未知来源应用」）。
+
+上架或分发给他人时，请在 `android/app/build.gradle` 里配置自己的 `signingConfigs`，再用 `assembleRelease` 出签名包；仓库里不带任何密钥。
+
+### 壳层做了哪些适配
+
+| 问题 | 处理 |
+| --- | --- |
+| 相机权限 | `AndroidManifest.xml` 声明 `CAMERA`，WebView 内 `getUserMedia` 走系统授权弹窗 |
+| 安全上下文 | `capacitor.config.json` 设置 `androidScheme: 'https'`，否则 `getUserMedia` 会被判定为非安全上下文 |
+| WebGL 黑屏 | Manifest 开启 `hardwareAccelerated`，`MainActivity` 显式设置 `LAYER_TYPE_HARDWARE`；渲染器按「抗锯齿 → 关抗锯齿 → low-power」逐级降级 |
+| 旧版 WebView | 构建目标锁定 `es2019/chrome80`；`index.html` 内联补齐 `FinalizationRegistry`、`WeakRef`，避免旧 WebView 里 three.js 初始化报错 |
+| 图标与启动屏 | 图标直接用 `public/favicon.png` 原图（透明背景），启动屏为白底居中 `layer-list`，不拉伸变形 |
+
 ## 目录结构
 
 ```text
@@ -135,6 +179,7 @@ npm run preview
 ├── desktop.html                # 电脑端独立落地页
 ├── package.json
 ├── vite.config.js              # 双入口构建 + 可选 HTTPS
+├── capacitor.config.json       # 安卓壳配置（appId / webDir / androidScheme）
 ├── public/
 │   └── favicon.png
 ├── src/
@@ -154,6 +199,7 @@ npm run preview
 │   │   └── solver-worker.js    # 消歧、合法性校验与求解
 │   └── vendor/
 │       └── cubejs/             # 本地化求解库与许可证
+├── android/                    # Capacitor 生成的安卓工程（可自行改包名/签名）
 └── docs/
     ├── landing.png
     ├── guide.png
@@ -187,3 +233,23 @@ npm run preview
 - 魔方需要完整落在取景框内；格子缺失时可在冻结照片上手动补色。
 - 手机端建议使用系统浏览器，并允许相机权限；`http://` 局域网地址无法启用相机，请用 `npm run dev:https`。
 - 求解耗时与打乱程度有关，复杂状态可能需要几秒。
+
+## 兼容性
+
+- 浏览器：Chrome / Edge 80+、Safari 14+、Android WebView（Chrome 80 及以上）。
+- 安卓壳：Android 7.0 及以上；如果系统 WebView 过旧，建议先在应用商店更新「Android System WebView」。
+- 相机需要安全上下文（HTTPS 或 `file`/`https` 壳环境），这也是安卓壳里使用 `androidScheme: 'https'` 的原因。
+
+## 贡献
+
+欢迎提 Issue 和 PR：
+
+1. Fork 本仓库并从 `main` 切出特性分支。
+2. 提交前请确认 `npm run build` 可通过，并尽量在真机上验证一次相机与 3D 流程。
+3. PR 描述里写清楚动机、改动范围和验证方式（截图/录屏更好）。
+
+代码风格保持现状：原生 JavaScript、无框架、无额外运行时依赖。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 wenlibo90
