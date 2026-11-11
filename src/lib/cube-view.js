@@ -93,6 +93,24 @@ function invertMove(move) {
   return `${move}'`
 }
 
+function createRenderer() {
+  // 部分安卓 WebView 在 high-performance / 抗锯齿组合下拿不到 WebGL 上下文，逐级降级尝试
+  const attempts = [
+    { antialias: true, alpha: true },
+    { antialias: false, alpha: true },
+    { antialias: false, alpha: true, powerPreference: 'low-power' },
+  ]
+  let lastError = null
+  for (const options of attempts) {
+    try {
+      return new THREE.WebGLRenderer(options)
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError
+}
+
 export class CubeView {
   constructor(container, facelet, moves = [], options = {}) {
     this.container = container
@@ -115,11 +133,7 @@ export class CubeView {
 
     this.scene = new THREE.Scene()
     this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100)
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: 'high-performance',
-    })
+    this.renderer = createRenderer()
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.setClearColor(0x000000, 0)

@@ -11,6 +11,25 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>拍魔方 · 魔方还原向导</title>
     <script>
+      // 旧版安卓 WebView（Chrome < 84）没有 FinalizationRegistry / WeakRef，three.js 依赖它们
+      ;(function () {
+        if (typeof window.FinalizationRegistry === 'undefined') {
+          window.FinalizationRegistry = function () {}
+          window.FinalizationRegistry.prototype.register = function () {}
+          window.FinalizationRegistry.prototype.unregister = function () {
+            return false
+          }
+        }
+        if (typeof window.WeakRef === 'undefined') {
+          window.WeakRef = function (target) {
+            this.deref = function () {
+              return target
+            }
+          }
+        }
+      })()
+    </script>
+    <script>
       // 桌面端统一进入独立的落地页，交互流程只保留在手机端
       ;(function () {
         if (new URLSearchParams(location.search).has('mobile')) return
@@ -20,7 +39,44 @@
     </script>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div
+        id="boot-status"
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          padding: 24px;
+          color: #959b93;
+          font-family: system-ui, sans-serif;
+          font-size: 14px;
+          line-height: 1.7;
+          text-align: center;
+        "
+      >
+        正在加载…
+      </div>
+    </div>
+    <script>
+      // 脚本加载失败时给出可读提示，避免原生壳里只看到黑屏
+      ;(function () {
+        var show = function (text) {
+          var el = document.getElementById('boot-status')
+          if (el) el.textContent = text
+        }
+        window.addEventListener(
+          'error',
+          function (event) {
+            show('页面脚本加载失败：' + (event.message || '未知错误'))
+          },
+          true
+        )
+        setTimeout(function () {
+          show('加载超时，脚本未执行；请确认系统 WebView 已更新到较新版本。')
+        }, 6000)
+      })()
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

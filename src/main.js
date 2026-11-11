@@ -77,6 +77,17 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function webglHint() {
+  try {
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('webgl2') || canvas.getContext('webgl')
+    if (context) return ''
+    return '当前设备的图形渲染（WebGL）不可用，请检查系统 WebView 是否为最新版本。'
+  } catch {
+    return '当前设备的图形渲染（WebGL）不可用，请检查系统 WebView 是否为最新版本。'
+  }
+}
+
 const app = document.querySelector('#app')
 app.innerHTML = renderApp()
 cacheDom()
@@ -1611,9 +1622,13 @@ async function enterGuide({ resume = false } = {}) {
     cubeView = new CubeViewClass(state.dom.cubeCanvas, state.solution.facelet, state.solution.moves, {
       onViewChange: () => updateCubeViewHint(true),
     })
-  } catch {
+  } catch (error) {
     setScreen('review')
-    setReviewAlert('error', '3D 预览无法启动', '当前浏览器可能不支持 WebGL，请换一个浏览器打开。')
+    setReviewAlert(
+      'error',
+      '3D 预览无法启动',
+      webglHint() || `当前环境的 WebGL 初始化失败：${error?.message || '未知错误'}`
+    )
     return
   }
   updateCubeViewHint(false)
